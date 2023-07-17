@@ -10,7 +10,7 @@ anyhow = "1.0"
 serde = { version = "1", features = ["derive"] }
 static_assertions = "1"
 
-zkevm_opcode_defs = { git = "https://github.com/matter-labs/era-zkevm_opcode_defs.git" }
+zkevm_opcode_defs = { git = "https://github.com/matter-labs/era-zkevm_opcode_defs.git", branch = "v1.3.2" }
 
 [dev-dependencies]
 hex = "0.4"
