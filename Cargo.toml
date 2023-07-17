@@ -1,0 +1,16 @@
+[package]
+name = "zk_evm_abstractions"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0"
+serde = { version = "1", features = ["derive"] }
+static_assertions = "1"
+
+zkevm_opcode_defs = { git = "https://github.com/matter-labs/era-zkevm_opcode_defs.git" }
+
+[dev-dependencies]
+hex = "0.4"
