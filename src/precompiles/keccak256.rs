@@ -86,7 +86,7 @@ impl<const B: bool> Precompile for Keccak256Precompile<B> {
         let mut input_byte_offset = params.input_memory_offset as usize;
         let mut bytes_left = params.input_memory_length as usize;
 
-        let mut num_rounds = (bytes_left + (KECCAK_RATE_BYTES - 1))/ KECCAK_RATE_BYTES;
+        let mut num_rounds = (bytes_left + (KECCAK_RATE_BYTES - 1)) / KECCAK_RATE_BYTES;
         let padding_space = bytes_left % KECCAK_RATE_BYTES;
         let needs_extra_padding_round = padding_space == 0;
         if needs_extra_padding_round {
