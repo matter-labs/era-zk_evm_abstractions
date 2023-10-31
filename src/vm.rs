@@ -1,7 +1,7 @@
 use zkevm_opcode_defs::{ethereum_types::U256, FatPointer};
 
 use crate::{
-    aux::{MemoryPage, Timestamp},
+    aux::{MemoryPage, PubdataCost, Timestamp},
     precompiles::{
         ecrecover::ECRecoverPrecompile, keccak256::Keccak256Precompile, sha256::Sha256Precompile,
     },
@@ -31,26 +31,16 @@ impl MemoryType {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct RefundedAmounts {
-    pub pubdata_bytes: u32,
-    pub ergs: u32,
+pub enum StorageAccessRefund {
+    Cold,
+    Warm { ergs: u32 },
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum RefundType {
-    None,
-    RepeatedRead(RefundedAmounts),
-    RepeatedWrite(RefundedAmounts),
-    RevertToOriginalInFrame(RefundedAmounts),
-}
-
-impl RefundType {
-    pub const fn pubdata_refund(&self) -> u32 {
+impl StorageAccessRefund {
+    pub const fn refund(&self) -> u32 {
         match self {
-            RefundType::None => 0,
-            RefundType::RepeatedRead(amounts) => amounts.pubdata_bytes,
-            RefundType::RepeatedWrite(amounts) => amounts.pubdata_bytes,
-            RefundType::RevertToOriginalInFrame(amounts) => amounts.pubdata_bytes,
+            StorageAccessRefund::Cold => 0,
+            StorageAccessRefund::Warm { ergs } => *ergs,
         }
     }
 }
@@ -72,24 +62,27 @@ pub enum PrecompileCyclesWitness {
 pub trait Storage: std::fmt::Debug {
     // We can evaluate a query cost (or more precisely - get expected refunds)
     // before actually executing query
-    fn estimate_refunds_for_write(
+    fn get_access_refund(
         &mut self, // to avoid any hacks inside, like prefetch
         monotonic_cycle_counter: u32,
         partial_query: &LogQuery,
-    ) -> RefundType;
+    ) -> StorageAccessRefund;
 
     // Perform a storage read/write access by taking an partially filled query
     // and returning filled query and cold/warm marker for pricing purposes
-    fn execute_partial_query(&mut self, monotonic_cycle_counter: u32, query: LogQuery) -> LogQuery;
+    fn execute_partial_query(
+        &mut self,
+        monotonic_cycle_counter: u32,
+        query: LogQuery,
+    ) -> (LogQuery, PubdataCost);
     // Indicate a start of execution frame for rollback purposes
     fn start_frame(&mut self, timestamp: Timestamp);
     // Indicate that execution frame went out from the scope, so we can
     // log the history and either rollback immediately or keep records to rollback later
     fn finish_frame(&mut self, timestamp: Timestamp, panicked: bool);
 
-    // N.B. We may need to extend frame markers for e.g. special bootloader execution frame
-    // such that we can flush all the changes of particular transaction since bootloader doesn't
-    // rollback further (at least now)
+    // And as we support transient store we need to inform that new tx has started
+    fn start_new_tx(&mut self);
 }
 
 pub trait Memory: std::fmt::Debug {
