@@ -1,25 +1,23 @@
-use zkevm_opcode_defs::k256::ecdsa::VerifyingKey;
-pub use zkevm_opcode_defs::sha2::Digest;
-use zkevm_opcode_defs::{ethereum_types::U256, k256, sha3};
+use zkevm_opcode_defs::{ethereum_types::U256, p256};
 
 use super::*;
 
-// we need hash, r, s, v
-pub const MEMORY_READS_PER_CYCLE: usize = 4;
+// we need hash, r, s, x, y
+pub const MEMORY_READS_PER_CYCLE: usize = 5;
 pub const MEMORY_WRITES_PER_CYCLE: usize = 2;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct ECRecoverRoundWitness {
+pub struct Secp256r1VerifyRoundWitness {
     pub new_request: LogQuery,
     pub reads: [MemoryQuery; MEMORY_READS_PER_CYCLE],
     pub writes: [MemoryQuery; MEMORY_WRITES_PER_CYCLE],
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct ECRecoverPrecompile<const B: bool>;
+pub struct Secp256r1VerifyPrecompile<const B: bool>;
 
-impl<const B: bool> Precompile for ECRecoverPrecompile<B> {
-    type CycleWitness = ECRecoverRoundWitness;
+impl<const B: bool> Precompile for Secp256r1VerifyPrecompile<B> {
+    type CycleWitness = Secp256r1VerifyRoundWitness;
 
     fn execute_precompile<M: Memory>(
         &mut self,
@@ -43,9 +41,12 @@ impl<const B: bool> Precompile for ECRecoverPrecompile<B> {
         // - hash of the message
         // - r
         // - s
-        // - v as a single byte
+        // - x
+        // - y
 
-        // we do 6 queries per precompile
+        // NOTE: we assume system contract to do pre-checks, but anyway catch cases of invalid ranges or point
+        // not on curve here
+
         let mut read_history = if B {
             Vec::with_capacity(MEMORY_READS_PER_CYCLE)
         } else {
@@ -57,7 +58,7 @@ impl<const B: bool> Precompile for ECRecoverPrecompile<B> {
             vec![]
         };
 
-        let mut round_witness = ECRecoverRoundWitness {
+        let mut round_witness = Secp256r1VerifyRoundWitness {
             new_request: precompile_call_params,
             reads: [MemoryQuery::empty(); MEMORY_READS_PER_CYCLE],
             writes: [MemoryQuery::empty(); MEMORY_WRITES_PER_CYCLE],
@@ -78,22 +79,6 @@ impl<const B: bool> Precompile for ECRecoverPrecompile<B> {
             round_witness.reads[read_idx] = hash_query;
             read_idx += 1;
             read_history.push(hash_query);
-        }
-
-        current_read_location.index.0 += 1;
-        let v_query = MemoryQuery {
-            timestamp: timestamp_to_read,
-            location: current_read_location,
-            value: U256::zero(),
-            value_is_pointer: false,
-            rw_flag: false,
-        };
-        let v_query = memory.execute_partial_query(monotonic_cycle_counter, v_query);
-        let v_value = v_query.value;
-        if B {
-            round_witness.reads[read_idx] = v_query;
-            read_idx += 1;
-            read_history.push(v_query);
         }
 
         current_read_location.index.0 += 1;
@@ -124,8 +109,42 @@ impl<const B: bool> Precompile for ECRecoverPrecompile<B> {
         let s_value = s_query.value;
         if B {
             round_witness.reads[read_idx] = s_query;
+            read_idx += 1;
             read_history.push(s_query);
         }
+
+        current_read_location.index.0 += 1;
+        let x_query = MemoryQuery {
+            timestamp: timestamp_to_read,
+            location: current_read_location,
+            value: U256::zero(),
+            value_is_pointer: false,
+            rw_flag: false,
+        };
+        let x_query = memory.execute_partial_query(monotonic_cycle_counter, x_query);
+        let x_value = x_query.value;
+        if B {
+            round_witness.reads[read_idx] = x_query;
+            read_idx += 1;
+            read_history.push(x_query);
+        }
+
+        current_read_location.index.0 += 1;
+        let y_query = MemoryQuery {
+            timestamp: timestamp_to_read,
+            location: current_read_location,
+            value: U256::zero(),
+            value_is_pointer: false,
+            rw_flag: false,
+        };
+        let y_query = memory.execute_partial_query(monotonic_cycle_counter, y_query);
+        let y_value = y_query.value;
+        if B {
+            round_witness.reads[read_idx] = y_query;
+            // read_idx += 1;
+            read_history.push(y_query);
+        }
+
         // read everything as bytes for ecrecover purposes
 
         let mut buffer = [0u8; 32];
@@ -138,27 +157,15 @@ impl<const B: bool> Precompile for ECRecoverPrecompile<B> {
         s_value.to_big_endian(&mut buffer[..]);
         let s_bytes = buffer;
 
-        v_value.to_big_endian(&mut buffer[..]);
-        let v = buffer[31];
-        assert!(v == 0 || v == 1);
+        x_value.to_big_endian(&mut buffer[..]);
+        let x_bytes = buffer;
 
-        let pk = ecrecover_inner(&hash, &r_bytes, &s_bytes, v);
+        y_value.to_big_endian(&mut buffer[..]);
+        let y_bytes = buffer;
 
-        // here it may be possible to have non-recoverable k*G point, so can fail
-        if let Ok(recovered_pubkey) = pk {
-            let pk = k256::PublicKey::from(&recovered_pubkey);
-            let affine_point = pk.as_affine().clone();
-            use k256::elliptic_curve::sec1::ToEncodedPoint;
-            let pk_bytes = affine_point.to_encoded_point(false);
-            let pk_bytes_ref: &[u8] = pk_bytes.as_ref();
-            assert_eq!(pk_bytes_ref.len(), 65);
-            debug_assert_eq!(pk_bytes_ref[0], 0x04);
-            let address_hash = sha3::Keccak256::digest(&pk_bytes_ref[1..]);
+        let result = secp256r1_verify_inner(&hash, &r_bytes, &s_bytes, &x_bytes, &y_bytes);
 
-            let mut address = [0u8; 32];
-            let hash_ref: &[u8] = address_hash.as_ref();
-            address[12..].copy_from_slice(&hash_ref[12..]);
-
+        if let Ok(is_valid) = result {
             let mut write_location = MemoryLocation {
                 memory_type: MemoryType::Heap, // we default for some value, here it's not that important
                 page: MemoryPage(params.memory_page_to_write),
@@ -177,7 +184,7 @@ impl<const B: bool> Precompile for ECRecoverPrecompile<B> {
                 memory.execute_partial_query(monotonic_cycle_counter, ok_or_err_query);
 
             write_location.index.0 += 1;
-            let result = U256::from_big_endian(&address);
+            let result = U256::from(is_valid as u64);
             let result_query = MemoryQuery {
                 timestamp: timestamp_to_write,
                 location: write_location,
@@ -238,34 +245,54 @@ impl<const B: bool> Precompile for ECRecoverPrecompile<B> {
     }
 }
 
-pub fn ecrecover_inner(
+pub fn secp256r1_verify_inner(
     digest: &[u8; 32],
     r: &[u8; 32],
     s: &[u8; 32],
-    rec_id: u8,
-) -> Result<VerifyingKey, ()> {
-    use k256::ecdsa::{RecoveryId, Signature};
-    // r, s
-    let mut signature = [0u8; 64];
-    signature[..32].copy_from_slice(r);
-    signature[32..].copy_from_slice(s);
+    x: &[u8; 32],
+    y: &[u8; 32],
+) -> Result<bool, ()> {
+    use p256::ecdsa::signature::hazmat::PrehashVerifier;
+    use p256::ecdsa::{Signature, VerifyingKey};
+    use p256::elliptic_curve::generic_array::GenericArray;
+    use p256::elliptic_curve::sec1::FromEncodedPoint;
+    use p256::{AffinePoint, EncodedPoint};
+
     // we expect pre-validation, so this check always works
-    let signature = Signature::try_from(&signature[..]).map_err(|_| ())?;
+    let signature = Signature::from_scalars(
+        GenericArray::clone_from_slice(r),
+        GenericArray::clone_from_slice(s),
+    )
+    .map_err(|_| ())?;
 
-    let recid = RecoveryId::try_from(rec_id).unwrap();
+    let encoded_pk = EncodedPoint::from_affine_coordinates(
+        &GenericArray::clone_from_slice(x),
+        &GenericArray::clone_from_slice(y),
+        false,
+    );
 
-    VerifyingKey::recover_from_prehash(digest, &signature, recid).map_err(|_| ())
+    let may_be_pk_point = AffinePoint::from_encoded_point(&encoded_pk);
+    if bool::from(may_be_pk_point.is_none()) {
+        return Err(());
+    }
+    let pk_point = may_be_pk_point.unwrap();
+
+    let verifier = VerifyingKey::from_affine(pk_point).map_err(|_| ())?;
+
+    let result = verifier.verify_prehash(digest, &signature);
+
+    Ok(result.is_ok())
 }
 
-pub fn ecrecover_function<M: Memory, const B: bool>(
+pub fn secp256r1_verify_function<M: Memory, const B: bool>(
     monotonic_cycle_counter: u32,
     precompile_call_params: LogQuery,
     memory: &mut M,
 ) -> Option<(
     Vec<MemoryQuery>,
     Vec<MemoryQuery>,
-    Vec<ECRecoverRoundWitness>,
+    Vec<Secp256r1VerifyRoundWitness>,
 )> {
-    let mut processor = ECRecoverPrecompile::<B>;
+    let mut processor = Secp256r1VerifyPrecompile::<B>;
     processor.execute_precompile(monotonic_cycle_counter, precompile_call_params, memory)
 }

@@ -4,11 +4,12 @@ use crate::vm::*;
 
 pub mod ecrecover;
 pub mod keccak256;
+pub mod secp256r1_verify;
 pub mod sha256;
 
 use zkevm_opcode_defs::system_params::{
     ECRECOVER_INNER_FUNCTION_PRECOMPILE_ADDRESS, KECCAK256_ROUND_FUNCTION_PRECOMPILE_ADDRESS,
-    SHA256_ROUND_FUNCTION_PRECOMPILE_ADDRESS,
+    SECP256R1_VERIFY_PRECOMPILE_ADDRESS, SHA256_ROUND_FUNCTION_PRECOMPILE_ADDRESS,
 };
 
 use zkevm_opcode_defs::PrecompileCallABI;
@@ -108,17 +109,37 @@ impl<const B: bool> PrecompilesProcessor for DefaultPrecompilesProcessor<B> {
                     None
                 }
             }
+            SECP256R1_VERIFY_PRECOMPILE_ADDRESS => {
+                if B {
+                    let (reads, writes, round_witness) =
+                        secp256r1_verify::secp256r1_verify_function::<M, B>(
+                            monotonic_cycle_counter,
+                            query,
+                            memory,
+                        )
+                        .expect("must generate intermediate witness");
+
+                    Some((
+                        reads,
+                        writes,
+                        PrecompileCyclesWitness::Secp256r1Verify(round_witness),
+                    ))
+                } else {
+                    let _ = secp256r1_verify::secp256r1_verify_function::<M, B>(
+                        monotonic_cycle_counter,
+                        query,
+                        memory,
+                    );
+
+                    None
+                }
+            }
             _ => {
                 // it's formally allowed for purposes of ergs-burning
-                // by special contracts
+                // by system contracts
 
                 None
-            } // _ => {
-              //     unreachable!(
-              //         "Tried to call a precompile from address {:?}",
-              //         query.address
-              //     );
-              // }
+            }
         }
     }
 
