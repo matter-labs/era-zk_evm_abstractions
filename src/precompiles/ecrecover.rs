@@ -142,11 +142,6 @@ impl<const B: bool> Precompile for ECRecoverPrecompile<B> {
         let v = buffer[31];
         assert!(v == 0 || v == 1);
 
-        let mut serialized = Vec::with_capacity(65);
-        serialized.extend(r_bytes);
-        serialized.extend(s_bytes);
-        serialized.push(v);
-
         let pk = ecrecover_inner(&hash, &r_bytes, &s_bytes, v);
 
         // here it may be possible to have non-recoverable k*G point, so can fail
