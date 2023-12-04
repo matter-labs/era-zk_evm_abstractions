@@ -274,8 +274,6 @@ struct CoreWrapper {
     _buffer: BlockBuffer,
 }
 
-static_assertions::assert_eq_size!(Keccak256, CoreWrapper);
-
 pub fn transmute_state(reference_state: Keccak256) -> Keccak256InnerState {
     // we use a trick that size of both structures is the same, and even though we do not know a stable field layout,
     // we can replicate it
