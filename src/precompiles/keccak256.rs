@@ -259,19 +259,19 @@ pub fn keccak256_rounds_function<M: Memory, const B: bool>(
 
 pub type Keccak256InnerState = [u64; 25];
 
-struct Sha3State {
-    state: [u64; 25],
-    _round_count: usize,
-}
-
 struct BlockBuffer {
     _buffer: [u8; 136],
     _pos: u8,
 }
 
 struct CoreWrapper {
-    core: Sha3State,
+    core: Keccak256VarCore,
     _buffer: BlockBuffer,
+}
+
+struct Keccak256VarCore {
+    state: Keccak256InnerState,
+    _round_count: usize,
 }
 
 static_assertions::assert_eq_size!(Keccak256, CoreWrapper);
