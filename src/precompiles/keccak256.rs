@@ -162,7 +162,7 @@ impl<const B: bool> Precompile for Keccak256Precompile<B> {
                     let data_query = MemoryQuery {
                         timestamp: timestamp_to_read,
                         location: MemoryLocation {
-                            memory_type: MemoryType::FatPointer,
+                            memory_type: MemoryType::Heap,
                             page: MemoryPage(source_memory_page),
                             index: MemoryIndex(memory_index as u32),
                         },
