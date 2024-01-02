@@ -14,7 +14,7 @@ use zkevm_opcode_defs::system_params::{
 };
 
 #[repr(u16)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, TryFromPrimitive)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TryFromPrimitive)]
 pub enum PrecompileAddress {
     Ecrecover = ECRECOVER_INNER_FUNCTION_PRECOMPILE_ADDRESS,
     SHA256 = SHA256_ROUND_FUNCTION_PRECOMPILE_ADDRESS,
