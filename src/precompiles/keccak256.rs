@@ -42,7 +42,10 @@ impl<const B: bool> Precompile for Keccak256Precompile<B> {
         monotonic_cycle_counter: u32,
         query: LogQuery,
         memory: &mut M,
-    ) -> Option<(Vec<MemoryQuery>, Vec<MemoryQuery>, Vec<Self::CycleWitness>)> {
+    ) -> (
+        usize,
+        Option<(Vec<MemoryQuery>, Vec<MemoryQuery>, Vec<Self::CycleWitness>)>,
+    ) {
         let precompile_call_params = query;
         // read the parameters
         let params = precompile_abi_in_log(precompile_call_params);
@@ -174,14 +177,18 @@ impl<const B: bool> Precompile for Keccak256Precompile<B> {
                 }
             }
 
-            witness.push(round_witness);
+            if B {
+                witness.push(round_witness);
+            }
         }
 
-        if B {
+        let witness = if B {
             Some((read_queries, write_queries, witness))
         } else {
             None
-        }
+        };
+
+        (num_rounds, witness)
     }
 }
 
@@ -235,11 +242,14 @@ pub fn keccak256_rounds_function<M: Memory, const B: bool>(
     monotonic_cycle_counter: u32,
     precompile_call_params: LogQuery,
     memory: &mut M,
-) -> Option<(
-    Vec<MemoryQuery>,
-    Vec<MemoryQuery>,
-    Vec<Keccak256RoundWitness>,
-)> {
+) -> (
+    usize,
+    Option<(
+        Vec<MemoryQuery>,
+        Vec<MemoryQuery>,
+        Vec<Keccak256RoundWitness>,
+    )>,
+) {
     let mut processor = Keccak256Precompile::<B>;
     processor.execute_precompile(monotonic_cycle_counter, precompile_call_params, memory)
 }

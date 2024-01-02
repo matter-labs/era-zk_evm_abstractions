@@ -33,7 +33,10 @@ impl<const B: bool> Precompile for Sha256Precompile<B> {
         monotonic_cycle_counter: u32,
         query: LogQuery,
         memory: &mut M,
-    ) -> Option<(Vec<MemoryQuery>, Vec<MemoryQuery>, Vec<Self::CycleWitness>)> {
+    ) -> (
+        usize,
+        Option<(Vec<MemoryQuery>, Vec<MemoryQuery>, Vec<Self::CycleWitness>)>,
+    ) {
         let precompile_call_params = query;
         let params = precompile_abi_in_log(precompile_call_params);
         let timestamp_to_read = precompile_call_params.timestamp;
@@ -146,11 +149,13 @@ impl<const B: bool> Precompile for Sha256Precompile<B> {
             }
         }
 
-        if B {
+        let witness = if B {
             Some((read_queries, write_queries, witness))
         } else {
             None
-        }
+        };
+
+        (num_rounds, witness)
     }
 }
 
@@ -158,7 +163,10 @@ pub fn sha256_rounds_function<M: Memory, const B: bool>(
     monotonic_cycle_counter: u32,
     precompile_call_params: LogQuery,
     memory: &mut M,
-) -> Option<(Vec<MemoryQuery>, Vec<MemoryQuery>, Vec<Sha256RoundWitness>)> {
+) -> (
+    usize,
+    Option<(Vec<MemoryQuery>, Vec<MemoryQuery>, Vec<Sha256RoundWitness>)>,
+) {
     let mut processor = Sha256Precompile::<B>;
     processor.execute_precompile(monotonic_cycle_counter, precompile_call_params, memory)
 }

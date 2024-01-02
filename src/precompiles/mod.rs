@@ -60,6 +60,7 @@ impl<const B: bool> PrecompilesProcessor for DefaultPrecompilesProcessor<B> {
                                 query,
                                 memory,
                             )
+                            .1
                             .expect("must generate intermediate witness");
 
                         Some((
@@ -86,6 +87,7 @@ impl<const B: bool> PrecompilesProcessor for DefaultPrecompilesProcessor<B> {
                                 query,
                                 memory,
                             )
+                            .1
                             .expect("must generate intermediate witness");
 
                         Some((
@@ -111,6 +113,7 @@ impl<const B: bool> PrecompilesProcessor for DefaultPrecompilesProcessor<B> {
                             query,
                             memory,
                         )
+                        .1
                         .expect("must generate intermediate witness");
 
                         Some((
