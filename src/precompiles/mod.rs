@@ -49,66 +49,18 @@ impl<const B: bool> PrecompilesProcessor for DefaultPrecompilesProcessor<B> {
         memory: &mut M,
     ) -> Option<(Vec<MemoryQuery>, Vec<MemoryQuery>, PrecompileCyclesWitness)> {
         let address_low = u16::from_le_bytes([query.address.0[19], query.address.0[18]]);
-        if let Ok(precompile_address) = PrecompileAddress::try_from(address_low) {
-            match precompile_address {
-                PrecompileAddress::Keccak256 => {
-                    // pure function call, non-revertable
-                    if B {
-                        let (reads, writes, round_witness) =
-                            keccak256::keccak256_rounds_function::<M, B>(
-                                monotonic_cycle_counter,
-                                query,
-                                memory,
-                            )
-                            .1
-                            .expect("must generate intermediate witness");
+        let Ok(precompile_address) = PrecompileAddress::try_from(address_low) else {
+            // it's formally allowed for purposes of ergs-burning
+            // by special contracts
+            return None;
+        };
 
-                        Some((
-                            reads,
-                            writes,
-                            PrecompileCyclesWitness::Keccak256(round_witness),
-                        ))
-                    } else {
-                        let _ = keccak256::keccak256_rounds_function::<M, B>(
-                            monotonic_cycle_counter,
-                            query,
-                            memory,
-                        );
-
-                        None
-                    }
-                }
-                PrecompileAddress::SHA256 => {
-                    // pure function call, non-revertable
-                    if B {
-                        let (reads, writes, round_witness) =
-                            sha256::sha256_rounds_function::<M, B>(
-                                monotonic_cycle_counter,
-                                query,
-                                memory,
-                            )
-                            .1
-                            .expect("must generate intermediate witness");
-
-                        Some((
-                            reads,
-                            writes,
-                            PrecompileCyclesWitness::Sha256(round_witness),
-                        ))
-                    } else {
-                        let _ = sha256::sha256_rounds_function::<M, B>(
-                            monotonic_cycle_counter,
-                            query,
-                            memory,
-                        );
-
-                        None
-                    }
-                }
-                PrecompileAddress::Ecrecover => {
-                    // pure function call, non-revertable
-                    if B {
-                        let (reads, writes, round_witness) = ecrecover::ecrecover_function::<M, B>(
+        match precompile_address {
+            PrecompileAddress::Keccak256 => {
+                // pure function call, non-revertable
+                if B {
+                    let (reads, writes, round_witness) =
+                        keccak256::keccak256_rounds_function::<M, B>(
                             monotonic_cycle_counter,
                             query,
                             memory,
@@ -116,27 +68,73 @@ impl<const B: bool> PrecompilesProcessor for DefaultPrecompilesProcessor<B> {
                         .1
                         .expect("must generate intermediate witness");
 
-                        Some((
-                            reads,
-                            writes,
-                            PrecompileCyclesWitness::ECRecover(round_witness),
-                        ))
-                    } else {
-                        let _ = ecrecover::ecrecover_function::<M, B>(
-                            monotonic_cycle_counter,
-                            query,
-                            memory,
-                        );
+                    Some((
+                        reads,
+                        writes,
+                        PrecompileCyclesWitness::Keccak256(round_witness),
+                    ))
+                } else {
+                    let _ = keccak256::keccak256_rounds_function::<M, B>(
+                        monotonic_cycle_counter,
+                        query,
+                        memory,
+                    );
 
-                        None
-                    }
+                    None
                 }
             }
-        } else {
-            // it's formally allowed for purposes of ergs-burning
-            // by special contracts
+            PrecompileAddress::SHA256 => {
+                // pure function call, non-revertable
+                if B {
+                    let (reads, writes, round_witness) = sha256::sha256_rounds_function::<M, B>(
+                        monotonic_cycle_counter,
+                        query,
+                        memory,
+                    )
+                    .1
+                    .expect("must generate intermediate witness");
 
-            None
+                    Some((
+                        reads,
+                        writes,
+                        PrecompileCyclesWitness::Sha256(round_witness),
+                    ))
+                } else {
+                    let _ = sha256::sha256_rounds_function::<M, B>(
+                        monotonic_cycle_counter,
+                        query,
+                        memory,
+                    );
+
+                    None
+                }
+            }
+            PrecompileAddress::Ecrecover => {
+                // pure function call, non-revertable
+                if B {
+                    let (reads, writes, round_witness) = ecrecover::ecrecover_function::<M, B>(
+                        monotonic_cycle_counter,
+                        query,
+                        memory,
+                    )
+                    .1
+                    .expect("must generate intermediate witness");
+
+                    Some((
+                        reads,
+                        writes,
+                        PrecompileCyclesWitness::ECRecover(round_witness),
+                    ))
+                } else {
+                    let _ = ecrecover::ecrecover_function::<M, B>(
+                        monotonic_cycle_counter,
+                        query,
+                        memory,
+                    );
+
+                    None
+                }
+            }
         }
     }
 
