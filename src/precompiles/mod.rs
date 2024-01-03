@@ -7,12 +7,23 @@ pub mod keccak256;
 pub mod secp256r1_verify;
 pub mod sha256;
 
+use num_enum::TryFromPrimitive;
+use std::convert::TryFrom;
 use zkevm_opcode_defs::system_params::{
     ECRECOVER_INNER_FUNCTION_PRECOMPILE_ADDRESS, KECCAK256_ROUND_FUNCTION_PRECOMPILE_ADDRESS,
     SECP256R1_VERIFY_PRECOMPILE_ADDRESS, SHA256_ROUND_FUNCTION_PRECOMPILE_ADDRESS,
 };
 
 use zkevm_opcode_defs::PrecompileCallABI;
+
+#[repr(u16)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TryFromPrimitive)]
+pub enum PrecompileAddress {
+    Ecrecover = ECRECOVER_INNER_FUNCTION_PRECOMPILE_ADDRESS,
+    SHA256 = SHA256_ROUND_FUNCTION_PRECOMPILE_ADDRESS,
+    Keccak256 = KECCAK256_ROUND_FUNCTION_PRECOMPILE_ADDRESS,
+    Secp256r1Verify = SECP256R1_VERIFY_PRECOMPILE_ADDRESS,
+}
 
 pub const fn precompile_abi_in_log(query: LogQuery) -> PrecompileCallABI {
     PrecompileCallABI::from_u256(query.key)
@@ -32,8 +43,14 @@ impl<const B: bool> PrecompilesProcessor for DefaultPrecompilesProcessor<B> {
         memory: &mut M,
     ) -> Option<(Vec<MemoryQuery>, Vec<MemoryQuery>, PrecompileCyclesWitness)> {
         let address_low = u16::from_le_bytes([query.address.0[19], query.address.0[18]]);
-        match address_low {
-            KECCAK256_ROUND_FUNCTION_PRECOMPILE_ADDRESS => {
+        let Ok(precompile_address) = PrecompileAddress::try_from(address_low) else {
+            // it's formally allowed for purposes of ergs-burning
+            // by special contracts
+            return None;
+        };
+
+        match precompile_address {
+            PrecompileAddress::Keccak256 => {
                 // pure function call, non-revertable
                 if B {
                     let (reads, writes, round_witness) =
@@ -42,6 +59,7 @@ impl<const B: bool> PrecompilesProcessor for DefaultPrecompilesProcessor<B> {
                             query,
                             memory,
                         )
+                        .1
                         .expect("must generate intermediate witness");
 
                     Some((
@@ -59,7 +77,7 @@ impl<const B: bool> PrecompilesProcessor for DefaultPrecompilesProcessor<B> {
                     None
                 }
             }
-            SHA256_ROUND_FUNCTION_PRECOMPILE_ADDRESS => {
+            PrecompileAddress::SHA256 => {
                 // pure function call, non-revertable
                 if B {
                     let (reads, writes, round_witness) = sha256::sha256_rounds_function::<M, B>(
@@ -67,6 +85,7 @@ impl<const B: bool> PrecompilesProcessor for DefaultPrecompilesProcessor<B> {
                         query,
                         memory,
                     )
+                    .1
                     .expect("must generate intermediate witness");
 
                     Some((
@@ -84,7 +103,7 @@ impl<const B: bool> PrecompilesProcessor for DefaultPrecompilesProcessor<B> {
                     None
                 }
             }
-            ECRECOVER_INNER_FUNCTION_PRECOMPILE_ADDRESS => {
+            PrecompileAddress::Ecrecover => {
                 // pure function call, non-revertable
                 if B {
                     let (reads, writes, round_witness) = ecrecover::ecrecover_function::<M, B>(
@@ -92,6 +111,7 @@ impl<const B: bool> PrecompilesProcessor for DefaultPrecompilesProcessor<B> {
                         query,
                         memory,
                     )
+                    .1
                     .expect("must generate intermediate witness");
 
                     Some((
@@ -109,7 +129,7 @@ impl<const B: bool> PrecompilesProcessor for DefaultPrecompilesProcessor<B> {
                     None
                 }
             }
-            SECP256R1_VERIFY_PRECOMPILE_ADDRESS => {
+            PrecompileAddress::Secp256r1Verify => {
                 if B {
                     let (reads, writes, round_witness) =
                         secp256r1_verify::secp256r1_verify_function::<M, B>(
@@ -117,6 +137,7 @@ impl<const B: bool> PrecompilesProcessor for DefaultPrecompilesProcessor<B> {
                             query,
                             memory,
                         )
+                        .1
                         .expect("must generate intermediate witness");
 
                     Some((
@@ -133,12 +154,6 @@ impl<const B: bool> PrecompilesProcessor for DefaultPrecompilesProcessor<B> {
 
                     None
                 }
-            }
-            _ => {
-                // it's formally allowed for purposes of ergs-burning
-                // by system contracts
-
-                None
             }
         }
     }
