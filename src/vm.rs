@@ -190,7 +190,8 @@ pub trait DecommittmentProcessor: std::fmt::Debug {
 pub trait Precompile: std::fmt::Debug {
     type CycleWitness: Clone + std::fmt::Debug;
 
-    /// execute a precompile by using request and access to memory. May be output
+    /// Execute a precompile by using request and access to memory. Output number of cycles needed.
+    /// May be output
     /// - all memory reads (may be removed later on)
     /// - all memory writes (depending on the implementation we may directly write to `memory` and also remove it)
     /// - FSM cycle witness parameters
@@ -199,7 +200,10 @@ pub trait Precompile: std::fmt::Debug {
         monotonic_cycle_counter: u32,
         query: LogQuery,
         memory: &mut M,
-    ) -> Option<(Vec<MemoryQuery>, Vec<MemoryQuery>, Vec<Self::CycleWitness>)>;
+    ) -> (
+        usize,
+        Option<(Vec<MemoryQuery>, Vec<MemoryQuery>, Vec<Self::CycleWitness>)>,
+    );
 }
 
 pub enum SpongeExecutionMarker {
