@@ -24,7 +24,12 @@ impl<const B: bool> Precompile for Secp256r1VerifyPrecompile<B> {
         monotonic_cycle_counter: u32,
         query: LogQuery,
         memory: &mut M,
-    ) -> Option<(Vec<MemoryQuery>, Vec<MemoryQuery>, Vec<Self::CycleWitness>)> {
+    ) -> (
+        usize,
+        Option<(Vec<MemoryQuery>, Vec<MemoryQuery>, Vec<Self::CycleWitness>)>,
+    ) {
+        const NUM_ROUNDS: usize = 1;
+
         // read the parameters
         let precompile_call_params = query;
         let params = precompile_abi_in_log(precompile_call_params);
@@ -237,11 +242,13 @@ impl<const B: bool> Precompile for Secp256r1VerifyPrecompile<B> {
             }
         }
 
-        if B {
+        let witness = if B {
             Some((read_history, write_history, vec![round_witness]))
         } else {
             None
-        }
+        };
+
+        (NUM_ROUNDS, witness)
     }
 }
 
@@ -288,11 +295,14 @@ pub fn secp256r1_verify_function<M: Memory, const B: bool>(
     monotonic_cycle_counter: u32,
     precompile_call_params: LogQuery,
     memory: &mut M,
-) -> Option<(
-    Vec<MemoryQuery>,
-    Vec<MemoryQuery>,
-    Vec<Secp256r1VerifyRoundWitness>,
-)> {
+) -> (
+    usize,
+    Option<(
+        Vec<MemoryQuery>,
+        Vec<MemoryQuery>,
+        Vec<Secp256r1VerifyRoundWitness>,
+    )>,
+) {
     let mut processor = Secp256r1VerifyPrecompile::<B>;
     processor.execute_precompile(monotonic_cycle_counter, precompile_call_params, memory)
 }
