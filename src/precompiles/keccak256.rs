@@ -150,7 +150,9 @@ impl<const B: bool> Precompile for Keccak256Precompile<B> {
                 };
 
                 let enough_buffer_space = input_buffer.can_fill_bytes(meaningful_bytes_in_query);
-                let should_read = paddings_round == false && enough_buffer_space;
+                let nothing_to_read = meaningful_bytes_in_query == 0;
+                let should_read =
+                    nothing_to_read == false && paddings_round == false && enough_buffer_space;
 
                 let bytes_to_fill = if should_read {
                     meaningful_bytes_in_query
