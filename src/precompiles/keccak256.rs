@@ -150,7 +150,9 @@ impl<const B: bool> Precompile for Keccak256Precompile<B> {
                 };
 
                 let enough_buffer_space = input_buffer.can_fill_bytes(meaningful_bytes_in_query);
-                let should_read = paddings_round == false && enough_buffer_space;
+                let nothing_to_read = meaningful_bytes_in_query == 0;
+                let should_read =
+                    nothing_to_read == false && paddings_round == false && enough_buffer_space;
 
                 let bytes_to_fill = if should_read {
                     meaningful_bytes_in_query
@@ -283,6 +285,8 @@ struct CoreWrapper {
     core: Sha3State,
     _buffer: BlockBuffer,
 }
+
+static_assertions::assert_eq_size!(Keccak256, CoreWrapper);
 
 pub fn transmute_state(reference_state: Keccak256) -> Keccak256InnerState {
     // we use a trick that size of both structures is the same, and even though we do not know a stable field layout,

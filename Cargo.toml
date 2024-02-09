@@ -8,10 +8,12 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0"
 serde = { version = "1", features = ["derive"] }
+static_assertions = "1"
 num_enum = "0.6"
 
 # zkevm_opcode_defs = { git = "https://github.com/matter-labs/era-zkevm_opcode_defs.git", branch = "v1.5.0" }
 zkevm_opcode_defs = { path = "../era-zkevm_opcode_defs" }
+
 
 [dev-dependencies]
 hex = "0.4"
