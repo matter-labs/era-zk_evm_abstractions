@@ -20,13 +20,17 @@ pub enum MemoryType {
     Heap,
     AuxHeap,
     FatPointer,
+    StaticMemory,
 }
 
 impl MemoryType {
     pub const fn page_size_limit(&self) -> usize {
         match self {
             MemoryType::Stack | MemoryType::Code => MEMORY_CELLS_STACK_OR_CODE_PAGE,
-            MemoryType::Heap | MemoryType::AuxHeap | MemoryType::FatPointer => u32::MAX as usize,
+            MemoryType::Heap
+            | MemoryType::AuxHeap
+            | MemoryType::FatPointer
+            | MemoryType::StaticMemory => u32::MAX as usize,
         }
     }
 }
@@ -199,13 +203,4 @@ pub trait Precompile: std::fmt::Debug {
         usize,
         Option<(Vec<MemoryQuery>, Vec<MemoryQuery>, Vec<Self::CycleWitness>)>,
     );
-}
-
-pub enum SpongeExecutionMarker {
-    MemoryQuery,
-    DecommittmentQuery,
-    StorageLogReadOnly,
-    StorageLogWrite,
-    CallstackPush,
-    CallstackPop,
 }
