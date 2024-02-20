@@ -88,7 +88,7 @@ pub trait Storage: std::fmt::Debug {
     fn finish_frame(&mut self, timestamp: Timestamp, panicked: bool);
 
     // And as we support transient store we need to inform that new tx has started
-    fn start_new_tx(&mut self);
+    fn start_new_tx(&mut self, timestamp: Timestamp);
 }
 
 pub trait Memory: std::fmt::Debug {
