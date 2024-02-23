@@ -1,4 +1,4 @@
-use zkevm_opcode_defs::{ethereum_types::U256, FatPointer};
+use zkevm_opcode_defs::{ethereum_types::{Address, U256}, FatPointer};
 
 use crate::{
     aux::{MemoryPage, PubdataCost, Timestamp},
@@ -119,6 +119,7 @@ pub trait Memory: std::fmt::Debug {
     fn finish_global_frame(
         &mut self,
         _page_page: MemoryPage,
+        _last_callstack_this: Address,
         _returndata_fat_pointer: FatPointer,
         _timestamp: Timestamp,
     ) {
