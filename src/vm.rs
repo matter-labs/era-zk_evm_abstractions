@@ -1,4 +1,7 @@
-use zkevm_opcode_defs::{ethereum_types::{Address, U256}, FatPointer};
+use zkevm_opcode_defs::{
+    ethereum_types::{Address, U256},
+    FatPointer,
+};
 
 use crate::{
     aux::{MemoryPage, PubdataCost, Timestamp},
@@ -177,12 +180,18 @@ pub trait DecommittmentProcessor: std::fmt::Debug {
     // already filled page if we decommit the same hash.
     // We also optinally return a set of memory writes that such decommitment has made (if it's a new page)
     // for witness generation at the end of the block
+    fn prepare_to_decommit(
+        &mut self,
+        monotonic_cycle_counter: u32,
+        partial_query: DecommittmentQuery,
+    ) -> anyhow::Result<DecommittmentQuery>;
+
     fn decommit_into_memory<M: Memory>(
         &mut self,
         monotonic_cycle_counter: u32,
         partial_query: DecommittmentQuery,
         memory: &mut M,
-    ) -> anyhow::Result<(DecommittmentQuery, Option<Vec<U256>>)>;
+    ) -> anyhow::Result<Option<Vec<U256>>>;
 }
 
 /// Abstraction over precompile implementation. Precompile is usually a closure-forming FSM, so it must output
