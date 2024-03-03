@@ -172,6 +172,16 @@ pub trait PrecompilesProcessor: std::fmt::Debug {
 }
 
 pub trait DecommittmentProcessor: std::fmt::Debug {
+    // Returns what sort of refund should the user receive for the decommit.
+    // Note, that the correctness of this refund is only partially enforced. I.e. in case the 
+    // user did not have enough funds to cover the `decommit_cost - refund`, the frame will fail with OOG.
+    // Otherwise, the correctness of this value is enforced by the circuits.
+    fn get_decommit_refund(
+        &mut self,
+        monotonic_cycle_counter: u32,
+        partial_query: DecommittmentQuery,
+    ) -> u32;
+
     // For calls to external contract we use storage read + request to decommit a particular hash into some memory page.
     // We also optimize in a way that since code and calldata locations ar read-only we can just give
     // already filled page if we decommit the same hash.
