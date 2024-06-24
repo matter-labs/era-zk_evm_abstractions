@@ -6,7 +6,8 @@ use zkevm_opcode_defs::{
 use crate::{
     aux::{MemoryPage, PubdataCost, Timestamp},
     precompiles::{
-        ecrecover::ECRecoverPrecompile, keccak256::Keccak256Precompile,
+        ecadd::ECAddPrecompile, ecmul::ECMulPrecompile, ecpairing::ECPairingPrecompile,
+        ecrecover::ECRecoverPrecompile, keccak256::Keccak256Precompile, modexp::ModexpPrecompile,
         secp256r1_verify::Secp256r1VerifyPrecompile, sha256::Sha256Precompile,
     },
     queries::{DecommittmentQuery, LogQuery, MemoryQuery},
@@ -58,6 +59,10 @@ pub enum PrecompileCyclesWitness {
     Sha256(Vec<<Sha256Precompile<true> as Precompile>::CycleWitness>),
     Keccak256(Vec<<Keccak256Precompile<true> as Precompile>::CycleWitness>),
     ECRecover(Vec<<ECRecoverPrecompile<true> as Precompile>::CycleWitness>),
+    ECAdd(Vec<<ECAddPrecompile<true> as Precompile>::CycleWitness>),
+    ECMul(Vec<<ECMulPrecompile<true> as Precompile>::CycleWitness>),
+    ECPairing(Vec<<ECPairingPrecompile<true> as Precompile>::CycleWitness>),
+    Modexp(Vec<<ModexpPrecompile<true> as Precompile>::CycleWitness>),
     Secp256r1Verify(Vec<<Secp256r1VerifyPrecompile<true> as Precompile>::CycleWitness>),
 }
 
